@@ -1,6 +1,7 @@
 use std::io::stdin;
 
 use parser::Bril;
+use cfg::BrilCFG;
 
 mod parser;
 mod cfg;
@@ -13,6 +14,10 @@ fn main() {
         }
     }
     let bril: Bril = serde_json::from_str(&s).unwrap();
-    println!("bril {bril:?}");
+    let mut cfg = BrilCFG::new(bril);
+    cfg.parse_blocks();
+    for block in cfg.blocks {
+        println!("{block}");
+    }
 }
 
