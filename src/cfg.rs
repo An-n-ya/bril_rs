@@ -60,10 +60,10 @@ impl BrilCFG {
                         // cur block will never be used afterwards, so it's safe to 
                         // change current block
                         // so unsafe code is applied to bypass the dumb checking system
-                        (*ptr.add(cnt)).succ = succ;
+                        (*ptr.add(cnt)).succ = succ.clone();
                     }
                 } else {
-                    panic!("unexpected empty block");
+                    panic!("unexpected label instruction");
                 }
             } else {
                 panic!("unexpected empty block");
@@ -93,6 +93,10 @@ impl BrilCFG {
                     },
                 }
             }
+        }
+        if !instrs.is_empty() {
+            let block = Block {name: self.cur_block_name(), instrs: instrs.clone(), succ: None};
+            self.blocks.push(block);
         }
     }
 
