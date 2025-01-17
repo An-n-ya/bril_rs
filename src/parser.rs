@@ -14,7 +14,7 @@ pub struct Function {
     pub(crate) instrs: Vec<Instr>
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(untagged)]
 pub enum Instr {
     Instruction {
@@ -65,7 +65,7 @@ pub struct Arg {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum Type {
     int,
     bool

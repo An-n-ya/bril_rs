@@ -5,6 +5,7 @@ use cfg::BrilCFG;
 
 mod parser;
 mod cfg;
+mod dce;
 
 fn main() {
     let mut s = String::new();

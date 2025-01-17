@@ -11,7 +11,7 @@ pub struct BrilCFG {
 
 pub struct Block {
     name: String,
-    instrs: Vec<Instr>,
+    pub(crate) instrs: Vec<Instr>,
     succ: Option<Vec<String>>,
 }
 
@@ -114,6 +114,7 @@ impl BrilCFG {
         self.resolve_cfg();
     }
 
+
     fn set_cur_block_name(&mut self, name: &str) {
         self.cur_name = Some(name.to_string())
     }
@@ -121,7 +122,7 @@ impl BrilCFG {
         if let Some(name) = self.cur_name.take() {
             name
         } else {
-            // FIXME: what is some label is start with tmp?
+            // FIXME: what if some label is start with tmp?
             let tmp_name = format!("tmp{}", self.unamed_block_cnt);
             self.unamed_block_cnt += 1;
             tmp_name
