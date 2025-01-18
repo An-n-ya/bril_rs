@@ -8,8 +8,10 @@ pub struct Bril {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Function {
     pub(crate) name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) args: Option<Vec<Arg>>,
     #[serde(rename="type")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) typ: Option<Type>,
     pub(crate) instrs: Vec<Instr>
 }
@@ -19,12 +21,19 @@ pub struct Function {
 pub enum Instr {
     Instruction {
         op: Opcode,
+        #[serde(skip_serializing_if = "Option::is_none")]
         dest: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
         #[serde(rename="type")]
         typ: Option<Type>,
+        #[serde(skip_serializing_if = "Option::is_none")]
         args: Option<Vec<String>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
         funcs: Option<Vec<String>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
         labels: Option<Vec<String>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        value: Option<Literal>,
     },
     Label {
         label: String 
@@ -69,6 +78,14 @@ pub struct Arg {
 pub enum Type {
     int,
     bool
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(untagged)]
+pub enum Literal {
+    Number(usize),
+    Bool(bool)
 }
 
 

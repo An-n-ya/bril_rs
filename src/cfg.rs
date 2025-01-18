@@ -1,6 +1,6 @@
 use std::fmt::{self, Display};
 
-use crate::parser::{Bril, Instr, Opcode};
+use crate::parser::{Bril, Function, Instr, Opcode};
 
 pub struct BrilCFG {
     bril: Bril,
@@ -13,6 +13,7 @@ pub struct Block {
     name: String,
     pub(crate) instrs: Vec<Instr>,
     succ: Option<Vec<String>>,
+    func: String,
 }
 
 const TERMINATOR: [Opcode; 3] = [Opcode::jmp, Opcode::ret, Opcode::br];
@@ -73,8 +74,10 @@ impl BrilCFG {
     }
     pub fn parse_blocks(&mut self) {
         let mut instrs = vec![];
+        let mut cur_func_name = "".to_string();
         for func in self.bril.functions.clone() {
-            self.set_cur_block_name(&func.name);
+            cur_func_name = func.name.clone();
+            self.set_cur_block_name(&cur_func_name);
             for instr in &func.instrs {
                 use crate::parser::Instr::*;
                 match instr {
@@ -85,6 +88,7 @@ impl BrilCFG {
                                 name: self.cur_block_name(),
                                 instrs: instrs.clone(),
                                 succ: None,
+                                func: cur_func_name.clone(),
                             };
                             self.blocks.push(block);
                             instrs.clear();
@@ -95,6 +99,7 @@ impl BrilCFG {
                             name: self.cur_block_name(),
                             instrs: instrs.clone(),
                             succ: None,
+                            func: cur_func_name.clone(),
                         };
                         self.blocks.push(block);
                         instrs.clear();
@@ -108,12 +113,55 @@ impl BrilCFG {
                 name: self.cur_block_name(),
                 instrs: instrs.clone(),
                 succ: None,
+                func: cur_func_name,
             };
             self.blocks.push(block);
         }
         self.resolve_cfg();
     }
 
+    // TODO: transform from cfg to original bril
+    pub fn to_bril(&self) -> Bril {
+        let mut cur_name = String::new();
+        let mut cur_func = None;
+        let mut funcs = vec![];
+        for block in &self.blocks {
+            if cur_name != block.func {
+                if let Some(func) = cur_func.take() {
+                    funcs.push(func);
+                }
+                cur_name = block.func.clone();
+                cur_func = self.get_func_by_name(&cur_name);
+            }
+            cur_func = cur_func.map(|mut func| {
+                if block.name != cur_name {
+                    // add label
+                    let label = Instr::Label {
+                        label: block.name.clone(),
+                    };
+                    func.instrs.push(label);
+                }
+                func.instrs.append(&mut block.instrs.clone());
+                func
+            });
+        }
+        if let Some(cur_func) = cur_func {
+            funcs.push(cur_func);
+        }
+        Bril { functions: funcs }
+    }
+
+    // the return function have empty instrs
+    fn get_func_by_name(&self, name: &str) -> Option<Function> {
+        for func in &self.bril.functions {
+            if func.name == name {
+                let mut res = func.clone();
+                res.instrs.clear();
+                return Some(res);
+            }
+        }
+        None
+    }
 
     fn set_cur_block_name(&mut self, name: &str) {
         self.cur_name = Some(name.to_string())
@@ -132,10 +180,7 @@ impl BrilCFG {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        io::Write,
-        process::{Command, Stdio},
-    };
+    use crate::utils::bril2json;
 
     use super::*;
     // TODO: test on bril's test directory
@@ -150,28 +195,21 @@ mod tests {
         print v;
 }"#;
 
-        let mut command = Command::new("bril2json")
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .spawn()
-            .expect("failed to execute command");
-        if let Some(mut stdin) = command.stdin.take() {
-            stdin
-                .write_all(bril_text.as_bytes())
-                .expect("Failed to write to stdin");
-        }
-        let bril_json = command
-            .wait_with_output()
-            .expect("Failed to wait on bril2json")
-            .stdout;
-        let bril_json = String::from_utf8(bril_json).expect("invalid string");
+        let bril_json = bril2json(bril_text);
         println!("bril_json: {bril_json}");
 
         let bril: Bril = serde_json::from_str(&bril_json).unwrap();
         let mut cfg = BrilCFG::new(bril);
         cfg.parse_blocks();
-        for block in cfg.blocks {
+        for block in &cfg.blocks {
             println!("{block}");
         }
+
+        let bril = cfg.to_bril();
+        let res = serde_json::to_string(&bril).expect("cannot convert bril {bril:?}");
+        assert_eq!(
+            res,
+            r#"{"functions":[{"name":"main","instrs":[{"op":"const","dest":"v","type":"int","value":4},{"op":"jmp","labels":["somewhere"]},{"label":"tmp0"},{"op":"const","dest":"v","type":"int","value":2},{"label":"somewhere"},{"op":"print","args":["v"]}]}]}"#
+        );
     }
 }

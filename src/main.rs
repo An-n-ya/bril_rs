@@ -6,6 +6,9 @@ use cfg::BrilCFG;
 mod parser;
 mod cfg;
 mod dce;
+mod utils;
+
+// TODO: use input flag to dispatch optimization function on bril
 
 fn main() {
     let mut s = String::new();
