@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use crate::{
-    cfg::Block,
-    parser::{Instr, Opcode},
+    cfg::{Block, BrilCFG},
+    parser::{Instr, Literal, Opcode},
 };
 
 type VarName = String;
@@ -17,8 +17,90 @@ pub struct LVN {
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 pub struct LVNTuple {
-    op: Opcode,
+    op: LVNOpcode,
     args: Vec<VarNum>,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone)]
+pub enum LVNOpcode {
+    add,
+    mul,
+    sub,
+    div,
+    eq,
+    lt,
+    gt,
+    le,
+    ge,
+    not,
+    and,
+    or,
+    jmp,
+    br,
+    call,
+    ret,
+    id,
+    print,
+    nop,
+    cst(Literal)
+}
+
+impl LVNOpcode {
+    pub fn from_instr(instr: &Instr) -> Self {
+        if let Instr::Instruction { op, value, ..}  = instr {
+            let mut vals = vec![];
+            match op {
+                Opcode::cst => {
+                    if let Some(value) = value {
+                        vals.push(value.clone());
+                    } else {
+                        panic!("const without value");
+                    }
+                }
+                _ => {}
+            }
+            Self::from_opcode(op.clone(), &vals)
+        } else {
+            panic!("unexpected label {instr:?}");
+        }
+    }
+
+    fn from_opcode(op: Opcode, val: &Vec<Literal>) -> Self {
+        match op {
+            Opcode::add => LVNOpcode::add,
+            Opcode::mul => LVNOpcode::mul,
+            Opcode::sub => LVNOpcode::sub,
+            Opcode::div => LVNOpcode::div,
+            Opcode::eq => LVNOpcode::eq,
+            Opcode::lt => LVNOpcode::lt,
+            Opcode::gt => LVNOpcode::gt,
+            Opcode::le => LVNOpcode::le,
+            Opcode::ge => LVNOpcode::ge,
+            Opcode::not => LVNOpcode::not,
+            Opcode::and => LVNOpcode::and,
+            Opcode::or => LVNOpcode::or,
+            Opcode::jmp => LVNOpcode::jmp,
+            Opcode::br => LVNOpcode::br,
+            Opcode::call => LVNOpcode::call,
+            Opcode::ret => LVNOpcode::ret,
+            Opcode::id => LVNOpcode::id,
+            Opcode::print => LVNOpcode::print,
+            Opcode::nop => LVNOpcode::nop,
+            Opcode::cst => {
+                assert!(val.len() == 1);
+                LVNOpcode::cst(val[0].clone())
+            },
+        }
+    }
+}
+
+impl BrilCFG {
+    pub fn lvn(&mut self) {
+        for block in self.blocks.iter_mut() {
+            block.lvn();
+        }
+    }
 }
 
 impl Block {
@@ -30,16 +112,17 @@ impl Block {
             let tuple = lvn.tuple_from_instr(instr);
             if lvn.table.contains_key(&tuple) {
                 let (num, var) = &lvn.table[&tuple];
-                if let Instr::Instruction { dest, .. } = instr {
+                if let Instr::Instruction { dest, typ, .. } = instr {
                     if let Some(dest) = dest {
+                        let typ = typ.as_ref().expect("instr {instr} does't have type");
                         // replace instr with copy of var
-                        let new_instr = Instr::new_id_instr(dest, var);
+                        let new_instr = Instr::new_id_instr(dest, var, typ.clone());
                         rewrite.insert(instr.clone(), new_instr);
                         lvn.var2num.insert(dest.clone(), *num);
                     }
                 }
             } else {
-                if let Instr::Instruction { dest, args, .. } = instr {
+                if let Instr::Instruction { dest,  .. } = instr {
                     if let Some(dest) = dest {
                         let num = lvn.next_var_num();
                         // FIXME: what if the dest is duplicated afterwards
@@ -119,6 +202,7 @@ impl LVN {
         }
     }
     pub fn tuple_from_instr(&self, instr: &Instr) -> LVNTuple {
+        println!("instr: {instr:?}");
         if let Instr::Instruction { op, args, .. } = instr {
             let args = if let Some(args) = args {
                 args.iter()
@@ -133,7 +217,7 @@ impl LVN {
                 vec![]
             };
             LVNTuple {
-                op: op.clone(),
+                op: LVNOpcode::from_instr(instr),
                 args,
             }
         } else {
@@ -142,4 +226,24 @@ impl LVN {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use crate::cfg::BrilCFG;
 
+    #[test]
+    fn lvn() {
+        let bril_text = r#"@main{
+        a: int = const 4;
+        b: int = const 2;
+        sum1: int = add a b;
+        sum2: int = add a b;
+        prod: int = mul sum1 sum2;
+        print prod;
+}"#;
+        let mut cfg = BrilCFG::from_text(bril_text);
+        cfg.lvn();
+        let bril_txt = cfg.to_text();
+        println!("out: {bril_txt}");
+
+    }
+}

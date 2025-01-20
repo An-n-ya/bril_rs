@@ -1,6 +1,6 @@
 use std::fmt::{self, Display};
 
-use crate::{lvn::LVN, parser::{Bril, Function, Instr, Opcode}};
+use crate::{lvn::LVN, parser::{Bril, Function, Instr, Opcode}, utils::{bril2json, bril2txt}};
 
 pub struct BrilCFG {
     bril: Bril,
@@ -50,6 +50,19 @@ impl BrilCFG {
             cur_name: None,
             blocks: vec![],
         }
+    }
+    pub fn from_text(text: &str) -> Self {
+        let bril_json = bril2json(text);
+
+        let bril: Bril = serde_json::from_str(&bril_json).unwrap();
+        let mut cfg = BrilCFG::new(bril);
+        cfg.parse_blocks();
+        cfg
+    }
+    pub fn to_text(&self) -> String {
+        let bril = self.to_bril();
+        let bril_json = serde_json::to_string(&bril).expect("cannot convert bril {bril:?}");
+        bril2txt(&bril_json)
     }
     pub fn resolve_cfg(&mut self) {
         for (cnt, block) in self.blocks.iter().enumerate() {

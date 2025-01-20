@@ -118,8 +118,6 @@ impl Block {
 
 #[cfg(test)]
 mod tests {
-    use crate::{parser::Bril, utils::{bril2json, bril2txt}};
-
     use super::*;
 
     #[test]
@@ -133,18 +131,11 @@ mod tests {
         print d;
 }"#;
 
-        let bril_json = bril2json(bril_text);
-        println!("bril_json: {bril_json}");
-
-        let bril: Bril = serde_json::from_str(&bril_json).unwrap();
-        let mut cfg = BrilCFG::new(bril);
-        cfg.parse_blocks();
+        let mut cfg = BrilCFG::from_text(bril_text);
 
 
         cfg.trivial_dce();
-        let bril = cfg.to_bril();
-        let bril_json = serde_json::to_string(&bril).expect("cannot convert bril {bril:?}");
-        let bril_txt = bril2txt(&bril_json);
+        let bril_txt = cfg.to_text();
 
         println!("bril_txt: {bril_txt}");
         assert!(!bril_txt.contains("c: int = const 1;"));

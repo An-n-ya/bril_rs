@@ -41,12 +41,12 @@ pub enum Instr {
 }
 
 impl Instr {
-    pub fn new_id_instr(dest: &str, src: &str) -> Self {
+    pub fn new_id_instr(dest: &str, src: &str, typ: Type) -> Self {
         Instr::Instruction {
             op: Opcode::id,
             dest: Some(dest.to_string()),
             args: Some(vec![src.to_string()]),
-            typ: None,
+            typ: Some(typ),
             funcs: None,
             labels: None,
             value: None,
