@@ -122,11 +122,16 @@ impl Block {
                     }
                 }
             } else {
-                if let Instr::Instruction { dest,  .. } = instr {
+                if let Instr::Instruction { op, dest, args,  .. } = instr {
                     if let Some(dest) = dest {
                         let num = lvn.next_var_num();
                         // FIXME: what if the dest is duplicated afterwards
-                        lvn.table.insert(tuple.clone(), (num, dest.clone()));
+                        if op == &Opcode::id {
+                            let args = args.as_ref().unwrap();
+                            lvn.table.insert(tuple.clone(), (num, args[0].clone()));
+                        } else {
+                            lvn.table.insert(tuple.clone(), (num, dest.clone()));
+                        }
                         lvn.num2tuple.insert(num, tuple);
                         lvn.var2num.insert(dest.clone(), num);
                     } else {
@@ -163,6 +168,11 @@ impl LVN {
             num2tuple: HashMap::new(),
             cur_num: 0,
         }
+    }
+    fn debug(&self) {
+        println!("{:?}", self.table);
+        println!("{:?}", self.var2num);
+        println!("{:?}", self.num2tuple);
     }
     pub fn next_var_num(&mut self) -> VarNum {
         let ret = self.cur_num;
@@ -202,15 +212,11 @@ impl LVN {
         }
     }
     pub fn tuple_from_instr(&self, instr: &Instr) -> LVNTuple {
-        println!("instr: {instr:?}");
         if let Instr::Instruction { op, args, .. } = instr {
             let args = if let Some(args) = args {
                 args.iter()
                     .map(|arg| {
-                        self.var2num
-                            .get(arg)
-                            .expect("cannot find variable {arg} in lvn")
-                            .clone()
+                        self.resolve_arg(arg)
                     })
                     .collect()
             } else {
@@ -223,6 +229,15 @@ impl LVN {
         } else {
             panic!("try to convert from label {instr:?} to LVNTuple");
         }
+    }
+
+    fn resolve_arg(&self, arg: &str) -> VarNum {
+        let num = self.var2num.get(arg).expect("cannot find variable {arg} in lvn");
+        let tuple = &self.num2tuple[num];
+        if tuple.op == LVNOpcode::id {
+            return tuple.args[0]
+        }
+        *num
     }
 }
 
@@ -242,8 +257,28 @@ mod tests {
 }"#;
         let mut cfg = BrilCFG::from_text(bril_text);
         cfg.lvn();
+        cfg.trivial_dce();
         let bril_txt = cfg.to_text();
         println!("out: {bril_txt}");
+        assert!(!bril_txt.contains("sum2: int"));
+    }
 
+    #[test]
+    fn copy_propagation() {
+        let bril_text = r#"@main{
+        x: int = const 4;
+        copy1: int = id x;
+        copy2: int = id copy1;
+        copy3: int = id copy2;
+        print copy3;
+}"#;
+        let mut cfg = BrilCFG::from_text(bril_text);
+        cfg.lvn();
+        cfg.trivial_dce();
+        let bril_txt = cfg.to_text();
+        println!("out: {bril_txt}");
+        assert!(!bril_txt.contains("copy1: int"));
+        assert!(!bril_txt.contains("copy2: int"));
+        assert!(!bril_txt.contains("copy3: int"));
     }
 }
