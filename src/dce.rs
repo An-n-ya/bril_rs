@@ -87,6 +87,10 @@ impl Block {
                     // for each defines
                     if let Some(dest) = dest {
                         if last_defs.contains_key(dest) {
+                            // FIXME: what if the current instr is exact same as last_def instr
+                            //          in this case, current instr will be deleted as well
+                            //          i.e.  a: int = const 1;
+                            //                a: int = const 1;
                             to_be_deleted.push(last_defs.get(dest).unwrap().clone());
                             flag = true;
                         } else {

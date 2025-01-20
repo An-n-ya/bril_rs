@@ -16,7 +16,7 @@ pub struct Function {
     pub(crate) instrs: Vec<Instr>
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(untagged)]
 pub enum Instr {
     Instruction {
@@ -40,8 +40,22 @@ pub enum Instr {
     }
 }
 
+impl Instr {
+    pub fn new_id_instr(dest: &str, src: &str) -> Self {
+        Instr::Instruction {
+            op: Opcode::id,
+            dest: Some(dest.to_string()),
+            args: Some(vec![src.to_string()]),
+            typ: None,
+            funcs: None,
+            labels: None,
+            value: None,
+        }
+    }
+}
+
 #[allow(non_camel_case_types)]
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Opcode {
     add,
     mul,
@@ -74,14 +88,14 @@ pub struct Arg {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Type {
     int,
     bool
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(untagged)]
 pub enum Literal {
     Number(usize),

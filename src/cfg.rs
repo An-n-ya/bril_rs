@@ -1,6 +1,6 @@
 use std::fmt::{self, Display};
 
-use crate::parser::{Bril, Function, Instr, Opcode};
+use crate::{lvn::LVN, parser::{Bril, Function, Instr, Opcode}};
 
 pub struct BrilCFG {
     bril: Bril,
@@ -14,6 +14,7 @@ pub struct Block {
     pub(crate) instrs: Vec<Instr>,
     succ: Option<Vec<String>>,
     func: String,
+    pub(crate) lvn: Option<LVN>
 }
 
 const TERMINATOR: [Opcode; 3] = [Opcode::jmp, Opcode::ret, Opcode::br];
@@ -26,6 +27,18 @@ impl Display for Block {
         }
         writeln!(f, "succ: {:?}", self.succ).unwrap();
         Ok(())
+    }
+}
+
+impl Block {
+    pub fn new(name: String, instrs: Vec<Instr>, func: String) -> Self {
+        Self {
+            name,
+            instrs,
+            succ: None,
+            func,
+            lvn: None
+        }
     }
 }
 
@@ -84,23 +97,13 @@ impl BrilCFG {
                     Instruction { op, .. } => {
                         instrs.push(instr.clone());
                         if TERMINATOR.contains(op) {
-                            let block = Block {
-                                name: self.cur_block_name(),
-                                instrs: instrs.clone(),
-                                succ: None,
-                                func: cur_func_name.clone(),
-                            };
+                            let block = Block::new(self.cur_block_name(), instrs.clone(), cur_func_name.clone());
                             self.blocks.push(block);
                             instrs.clear();
                         }
                     }
                     Label { label } => {
-                        let block = Block {
-                            name: self.cur_block_name(),
-                            instrs: instrs.clone(),
-                            succ: None,
-                            func: cur_func_name.clone(),
-                        };
+                        let block = Block::new(self.cur_block_name(), instrs.clone(), cur_func_name.clone());
                         self.blocks.push(block);
                         instrs.clear();
                         self.set_cur_block_name(label);
@@ -109,12 +112,7 @@ impl BrilCFG {
             }
         }
         if !instrs.is_empty() {
-            let block = Block {
-                name: self.cur_block_name(),
-                instrs: instrs.clone(),
-                succ: None,
-                func: cur_func_name,
-            };
+            let block = Block::new(self.cur_block_name(), instrs.clone(), cur_func_name.clone());
             self.blocks.push(block);
         }
         self.resolve_cfg();

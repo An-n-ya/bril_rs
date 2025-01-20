@@ -7,6 +7,7 @@ mod parser;
 mod cfg;
 mod dce;
 mod utils;
+mod lvn;
 
 // TODO: use input flag to dispatch optimization function on bril
 
