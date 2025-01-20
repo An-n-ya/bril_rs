@@ -213,7 +213,7 @@ impl LVN {
     }
     pub fn tuple_from_instr(&self, instr: &Instr) -> LVNTuple {
         if let Instr::Instruction { op, args, .. } = instr {
-            let args = if let Some(args) = args {
+            let mut args = if let Some(args) = args {
                 args.iter()
                     .map(|arg| {
                         self.resolve_arg(arg)
@@ -222,6 +222,7 @@ impl LVN {
             } else {
                 vec![]
             };
+            args.sort();
             LVNTuple {
                 op: LVNOpcode::from_instr(instr),
                 args,
@@ -277,8 +278,26 @@ mod tests {
         cfg.trivial_dce();
         let bril_txt = cfg.to_text();
         println!("out: {bril_txt}");
-        assert!(!bril_txt.contains("copy1: int"));
-        assert!(!bril_txt.contains("copy2: int"));
-        assert!(!bril_txt.contains("copy3: int"));
+        assert!(!bril_txt.contains("copy1"));
+        assert!(!bril_txt.contains("copy2"));
+        assert!(!bril_txt.contains("copy3"));
+    }
+
+    #[test]
+    fn commutativity() {
+        let bril_text = r#"@main{
+        a: int = const 4;
+        b: int = const 2;
+        sum1: int = add a b;
+        sum2: int = add b a;
+        prod: int = mul sum1 sum2;
+        print prod;
+}"#;
+        let mut cfg = BrilCFG::from_text(bril_text);
+        cfg.lvn();
+        cfg.trivial_dce();
+        let bril_txt = cfg.to_text();
+        println!("out: {bril_txt}");
+        assert!(!bril_txt.contains("sum2"));
     }
 }
